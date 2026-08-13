@@ -122,13 +122,26 @@ Run all three detection scenarios sequentially:
 make demo
 ```
 
-Refresh Falcosidekick UI and confirm that the following alerts are present:
+Refresh Falcosidekick UI and inspect the generated alerts:
 
 - `OMSL Root Chmod In Container` with priority `INFORMATIONAL`;
-- `OMSL Read Shadow File` with priority `CRITICAL`;
+- `Read sensitive file untrusted` with priority `WARNING` for the `/etc/shadow` read;
 - `OMSL Write Shadow File` with priority `EMERGENCY`.
 
 ![Falcosidekick UI displaying the Falco runtime security events](media/falco-events.png)
+
+The `WARNING` visible in the screenshot comes from Falco's standard ruleset, not from the custom `OMSL Read Shadow File` rule. Both rules match the same file-open event, but Falco uses `rule_matching: first` by default. The first matching standard rule therefore emits the alert and stops evaluation before the custom `CRITICAL` rule can emit another one.
+
+To emit every matching rule, including `OMSL Read Shadow File` with priority `CRITICAL`, add the following option to `falco/values.yaml`:
+
+```yaml
+falco:
+  json_output: true
+  priority: debug
+  rule_matching: all
+```
+
+Redeploy with `make deploy`, then rerun `make test-critical`. Falcosidekick UI should display both the standard `WARNING` and the custom `CRITICAL` alert for the same read operation. This duplication is useful for demonstrating rule precedence, but a production ruleset should instead be tuned to avoid redundant alerts.
 
 To inspect raw Falco output instead, run:
 
@@ -162,6 +175,8 @@ The test executes:
 kubectl -n falco-demo exec vulnerable-demo -- cat /etc/shadow
 ```
 
+With the repository's default `rule_matching: first` behavior, this command is reported by the standard `Read sensitive file untrusted` rule at `WARNING` priority. Enable `rule_matching: all` as described in [Verification](#-verification) to also observe the custom `OMSL Read Shadow File` alert at `CRITICAL` priority.
+
 ### EMERGENCY — sensitive file modification
 
 ```bash
@@ -187,6 +202,8 @@ Each rule restricts detection to containers with `container.id != host`:
 - the write rule matches the same open syscalls when `/etc/shadow` is opened for writing.
 
 Alert output includes the user, process command line, file path, and container name to provide useful investigation context.
+
+Rule order matters when multiple rules match one event. The default first-match behavior can give a standard Falco rule precedence over a custom rule, as demonstrated by the `/etc/shadow` read scenario. Setting `rule_matching: all` changes evaluation globally and may increase the number of duplicate or overlapping alerts.
 
 ## 🍎 macOS and Kind Caveat
 
