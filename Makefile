@@ -1,0 +1,19 @@
+.PHONY: deploy ui status demo test-informational test-critical test-emergency logs cleanup
+deploy:
+	./scripts/deploy.sh
+ui:
+	./scripts/ui.sh
+status:
+	./scripts/status.sh
+demo:
+	./scripts/demo.sh
+test-informational:
+	./scripts/test-informational.sh
+test-critical:
+	./scripts/test-critical.sh
+test-emergency:
+	./scripts/test-emergency.sh
+logs:
+	./scripts/logs.sh
+cleanup:
+	./scripts/cleanup.sh

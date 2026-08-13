@@ -1,0 +1,36 @@
+driver:
+  kind: modern_ebpf
+tty: true
+falco:
+  json_output: true
+  priority: debug
+customRules:
+  omsl_rules.yaml: |-
+    - rule: OMSL Root Chmod In Container
+      desc: Detect root changing file permissions inside a container
+      condition: evt.type = chmod and evt.dir = < and container.id != host and user.uid = 0
+      output: "OMSL root chmod (user=%user.name command=%proc.cmdline file=%fd.name container=%container.name)"
+      priority: INFORMATIONAL
+      tags: [omsl, permissions]
+
+    - rule: OMSL Read Shadow File
+      desc: Detect reading /etc/shadow inside a container
+      condition: evt.type in (open, openat, openat2) and evt.dir = < and container.id != host and fd.name = /etc/shadow and evt.is_open_read = true
+      output: "OMSL sensitive file read (user=%user.name command=%proc.cmdline file=%fd.name container=%container.name)"
+      priority: CRITICAL
+      tags: [omsl, credential-access]
+
+    - rule: OMSL Write Shadow File
+      desc: Detect writing /etc/shadow inside a container
+      condition: evt.type in (open, openat, openat2) and evt.dir = < and container.id != host and fd.name = /etc/shadow and evt.is_open_write = true
+      output: "OMSL sensitive file modification (user=%user.name command=%proc.cmdline file=%fd.name container=%container.name)"
+      priority: EMERGENCY
+      tags: [omsl, sensitive-file]
+falcosidekick:
+  enabled: true
+  replicaCount: 1
+  webui:
+    enabled: true
+    replicaCount: 1
+    redis:
+      storageEnabled: false
